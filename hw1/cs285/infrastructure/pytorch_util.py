@@ -22,8 +22,8 @@ def build_mlp(
         output_size: int,
         n_layers: int,
         size: int,
-        activation: Activation = 'tanh',
-        output_activation: Activation = 'identity',
+        activation: Activation = 'relu',
+        output_activation: Activation = None,
 ) -> nn.Module:
     """
         Builds a feedforward neural network
@@ -47,7 +47,16 @@ def build_mlp(
 
     # TODO: return a MLP. This should be an instance of nn.Module
     # Note: nn.Sequential is an instance of nn.Module.
-    raise NotImplementedError
+    model = nn.Sequential()
+    model.add_module("input", nn.Linear(input_size, size))
+    for i in range(n_layers-1):
+        model.add_module(f"relu{i}" , activation)
+        model.add_module(f"linear{i}" , nn.Linear(size, size))
+    model.add_module(f"relu{i+1}" , activation)
+    model.add_module("output", nn.Linear(size, output_size))
+    # model.add_module("activation" , output_activation)
+
+    return model
 
 
 device = None
