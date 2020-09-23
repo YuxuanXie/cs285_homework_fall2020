@@ -7,7 +7,7 @@ from torch import optim
 import numpy as np
 import torch
 from torch import distributions
-
+from cs285.infrastructure import utils
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.policies.base_policy import BasePolicy
 
@@ -86,8 +86,16 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
 
     # query the policy with observation(s) to get selected action(s)
     def get_action(self, obs: np.ndarray) -> np.ndarray:
-        # TODO: get this from hw1
-        return action
+        if len(obs.shape) > 1:
+            observation = obs
+        else:
+            observation = obs[None]
+        observation = ptu.from_numpy(observation)
+        
+        if self.discrete:
+            return distributions.Categorical(self.logits_na(observation)).sample().detach().numpy()
+
+        return self.mean_net(observation).detach().numpy()
 
     # update/train this policy
     def update(self, observations, actions, **kwargs):
@@ -99,8 +107,11 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
     # return more flexible objects, such as a
     # `torch.distributions.Distribution` object. It's up to you!
     def forward(self, observation: torch.FloatTensor):
-        # TODO: get this from hw1
-        return action_distribution
+        # TODO_: get this from hw1
+        if self.discrete:
+            return distributions.Categorical(self.logits_na(observation))
+        return distributions.Categorical(self.mean_net(observation))
+        # return action_distribution
 
 
 #####################################################
@@ -117,7 +128,7 @@ class MLPPolicyPG(MLPPolicy):
         actions = ptu.from_numpy(actions)
         advantages = ptu.from_numpy(advantages)
 
-        # TODO: compute the loss that should be optimized when training with policy gradient
+        # TODO_: compute the loss that should be optimized when training with policy gradient
         # HINT1: Recall that the expression that we want to MAXIMIZE
             # is the expectation over collected trajectories of:
             # sum_{t=0}^{T-1} [grad [log pi(a_t|s_t) * (Q_t - b_t)]]
@@ -125,33 +136,43 @@ class MLPPolicyPG(MLPPolicy):
             # by the `forward` method
         # HINT3: don't forget that `optimizer.step()` MINIMIZES a loss
 
-        loss = TODO
+        log_prob = self.forward(observations).log_prob(actions)
+        if self.nn_baseline:
+            loss = torch.mean(log_prob * (self.baseline(observations) - q_values))
+        else:
+            loss = - 1.0 * torch.mean(log_prob * advantages)
 
-        # TODO: optimize `loss` using `self.optimizer`
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        # TODO_: optimize `loss` using `self.optimizer`
         # HINT: remember to `zero_grad` first
-        TODO
+        # TODO_
 
         if self.nn_baseline:
-            ## TODO: normalize the q_values to have a mean of zero and a standard deviation of one
+            ## TODO_: normalize the q_values to have a mean of zero and a standard deviation of one
             ## HINT: there is a `normalize` function in `infrastructure.utils`
-            targets = TODO
+            targets = utils.normalize(q_values, 0, 1)
             targets = ptu.from_numpy(targets)
 
-            ## TODO: use the `forward` method of `self.baseline` to get baseline predictions
-            baseline_predictions = TODO
+            ## TODO_: use the `forward` method of `self.baseline` to get baseline predictions
+            baseline_predictions = self.baseline(observations)
             
             ## avoid any subtle broadcasting bugs that can arise when dealing with arrays of shape
             ## [ N ] versus shape [ N x 1 ]
             ## HINT: you can use `squeeze` on torch tensors to remove dimensions of size 1
             assert baseline_predictions.shape == targets.shape
             
-            # TODO: compute the loss that should be optimized for training the baseline MLP (`self.baseline`)
+            # TODO_: compute the loss that should be optimized for training the baseline MLP (`self.baseline`)
             # HINT: use `F.mse_loss`
-            baseline_loss = TODO
+            baseline_loss = self.baseline_loss(targets, baseline_predictions)
 
-            # TODO: optimize `baseline_loss` using `self.baseline_optimizer`
+            # TODO_: optimize `baseline_loss` using `self.baseline_optimizer`
             # HINT: remember to `zero_grad` first
-            TODO
+            self.baseline_optimizer.zero_grad()
+            baseline_loss.backward()
+            self.baseline_optimizer.step()
 
         train_log = {
             'Training Loss': ptu.to_numpy(loss),

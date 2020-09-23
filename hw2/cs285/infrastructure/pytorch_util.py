@@ -55,6 +55,7 @@ def build_mlp(
         in_size = size
     layers.append(nn.Linear(in_size, output_size))
     layers.append(output_activation)
+    layers.append(nn.Softmax())
     return nn.Sequential(*layers)
 
 
