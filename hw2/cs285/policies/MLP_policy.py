@@ -138,7 +138,7 @@ class MLPPolicyPG(MLPPolicy):
 
         log_prob = self.forward(observations).log_prob(actions)
         if self.nn_baseline:
-            loss = torch.mean(log_prob * (self.baseline(observations) - q_values))
+            loss = torch.mean(log_prob * (torch.squeeze(self.baseline(observations)) - ptu.from_numpy(q_values)))
         else:
             loss = - 1.0 * torch.mean(log_prob * advantages)
 
@@ -157,7 +157,7 @@ class MLPPolicyPG(MLPPolicy):
             targets = ptu.from_numpy(targets)
 
             ## TODO_: use the `forward` method of `self.baseline` to get baseline predictions
-            baseline_predictions = self.baseline(observations)
+            baseline_predictions = torch.squeeze(self.baseline(observations))
             
             ## avoid any subtle broadcasting bugs that can arise when dealing with arrays of shape
             ## [ N ] versus shape [ N x 1 ]
