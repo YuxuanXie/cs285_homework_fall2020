@@ -1,5 +1,5 @@
 import numpy as np
-
+import copy
 from .base_agent import BaseAgent
 from cs285.policies.MLP_policy import MLPPolicyPG
 from cs285.infrastructure.replay_buffer import ReplayBuffer
@@ -131,6 +131,12 @@ class PGAgent(BaseAgent):
         # TODO: create list_of_discounted_returns
         # Hint: note that all entries of this output are equivalent
             # because each sum is from 0 to T (and doesnt involve t)
+        discounted_return = 0
+
+        for r in rewards.reverse():
+            discounted_return = r + self.gamma * discounted_return
+
+        list_of_discounted_returns = [discounted_return] * len(rewards) 
 
         return list_of_discounted_returns
 
@@ -146,6 +152,13 @@ class PGAgent(BaseAgent):
             # because the summation happens over [t, T] instead of [0, T]
         # HINT2: it is possible to write a vectorized solution, but a solution
             # using a for loop is also fine
+        if len(rewards) == 0 :
+            return []
+            
+        list_of_discounted_cumsums = copy.deepcopy(rewards)
+
+        for i in reversed(range(len(rewards) - 1)) :
+            list_of_discounted_cumsums[i] = list_of_discounted_cumsums[i] + self.gamma * list_of_discounted_cumsums[i+1]
 
         return list_of_discounted_cumsums
 
