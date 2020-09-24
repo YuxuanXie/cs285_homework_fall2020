@@ -14,6 +14,7 @@ _str_to_activation = {
     'selu': nn.SELU(),
     'softplus': nn.Softplus(),
     'identity': nn.Identity(),
+    'softmax' : nn.Softmax()
 }
 
 
@@ -55,7 +56,6 @@ def build_mlp(
         in_size = size
     layers.append(nn.Linear(in_size, output_size))
     layers.append(output_activation)
-    layers.append(nn.Softmax())
     return nn.Sequential(*layers)
 
 

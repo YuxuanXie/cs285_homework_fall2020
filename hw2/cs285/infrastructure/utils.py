@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import copy
-
+import torch
 ############################################
 ############################################
 
@@ -181,3 +181,7 @@ def add_noise(data_inp, noiseToSignal=0.01):
             0, np.absolute(std_of_noise[j]), (data.shape[0],)))
 
     return data
+
+def multivariate_normal_diag(loc, scale_diag):
+    normal = torch.distributions.Normal(loc, scale=scale_diag)
+    return torch.distributions.Independent(normal, 1)

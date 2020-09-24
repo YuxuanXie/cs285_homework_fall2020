@@ -41,7 +41,9 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
             self.logits_na = ptu.build_mlp(input_size=self.ob_dim,
                                            output_size=self.ac_dim,
                                            n_layers=self.n_layers,
-                                           size=self.size)
+                                           size=self.size,
+                                           activation='relu',
+                                           output_activation='softmax')
             self.logits_na.to(ptu.device)
             self.mean_net = None
             self.logstd = None
@@ -90,12 +92,14 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
             observation = obs
         else:
             observation = obs[None]
+
         observation = ptu.from_numpy(observation)
         
         if self.discrete:
             return distributions.Categorical(self.logits_na(observation)).sample().detach().numpy()
-
-        return self.mean_net(observation).detach().numpy()
+        probs_out = self.mean_net(observation)
+        action = probs_out + torch.exp(self.logstd) * torch.randn(probs_out.size())
+        return action.detach().numpy()
 
     # update/train this policy
     def update(self, observations, actions, **kwargs):
@@ -110,7 +114,7 @@ class MLPPolicy(BasePolicy, nn.Module, metaclass=abc.ABCMeta):
         # TODO_: get this from hw1
         if self.discrete:
             return distributions.Categorical(self.logits_na(observation))
-        return distributions.Categorical(self.mean_net(observation))
+        return self.mean_net(observation)
         # return action_distribution
 
 
@@ -136,11 +140,18 @@ class MLPPolicyPG(MLPPolicy):
             # by the `forward` method
         # HINT3: don't forget that `optimizer.step()` MINIMIZES a loss
 
-        log_prob = self.forward(observations).log_prob(actions)
+        if self.discrete :
+            log_prob = self.forward(observations).log_prob(actions)
+        else:
+            log_prob = utils.multivariate_normal_diag(loc = self.forward(observations), scale_diag=torch.exp(self.logstd)).log_prob(actions)
+
         if self.nn_baseline:
             loss = torch.mean(log_prob * (torch.squeeze(self.baseline(observations)) - ptu.from_numpy(q_values)))
         else:
             loss = - 1.0 * torch.mean(log_prob * advantages)
+
+        # import pdb; pdb.set_trace()
+
 
         self.optimizer.zero_grad()
         loss.backward()
