@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 
 class ArgMaxPolicy(object):
@@ -12,8 +13,8 @@ class ArgMaxPolicy(object):
         else:
             observation = obs[None]
         
-        ## TODO return the action that maxinmizes the Q-value 
+        ## TODO_ return the action that maxinmizes the Q-value 
         # at the current observation as the output
-        actions = TODO
+        actions = torch.argmax(self.critic(observation))
 
         return action.squeeze()
